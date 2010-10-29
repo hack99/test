@@ -1,11 +1,11 @@
 #Source file
 
-SRC = test_tp.cpp
+SRC = test_object_factory.cpp
 #Object file
 OBJ = $(SRC:.cpp=.o)
 
 #Output execution file
-PROGRAM = test_tp
+PROGRAM = test_object_factory
 PROGRAM_EXT = bin
 
 #Compiler

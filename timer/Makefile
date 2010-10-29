@@ -6,6 +6,7 @@ OBJ = $(SRC:.cpp=.o)
 
 #Output execution file
 PROGRAM = test_timer
+PROGRAM_EXT = bin
 
 #Compiler
 CC = g++
@@ -22,10 +23,10 @@ CFLAGS = -ansi -g -Wall
 #Options for release
 #CFLAGS = -ansi -O -Wall
 
-all: $(PROGRAM)
+all: $(PROGRAM).$(PROGRAM_EXT)
 
-$(PROGRAM): $(OBJ)
-	$(CC) -o $(PROGRAM) $(LINKPARAM) $(OBJ)  
+$(PROGRAM).$(PROGRAM_EXT): $(OBJ)
+	$(CC) -o $(PROGRAM).$(PROGRAM_EXT) $(LINKPARAM) $(OBJ)  
 
 .SUFFIXES = .cpp
 
