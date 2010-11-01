@@ -31,10 +31,19 @@ private:
 	int count_;
 	int sec_;
 };
+
+boost::shared_ptr<printer> create(boost::asio::io_service &io, int sec)
+{
+	boost::shared_ptr<printer> p(new printer(io, sec));
+	return p;
+}
+
 int main()
 {
 	boost::asio::io_service io;
-	printer p1(io, 1), p2(io, 2), p3(io, 3);
+	boost::shared_ptr<printer> p1 = create(io, 1);
+	boost::shared_ptr<printer> p2 = create(io, 2);
+	boost::shared_ptr<printer> p3 = create(io, 3);
 	io.run();
 	return 0;
 }
