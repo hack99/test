@@ -1,18 +1,3 @@
-/*! \file
- * \brief Quick start example.
- *
- * This is a very simple example which can be used to configure the threadpool environment on your system. 
- *
- * Copyright (c) 2005-2006 Philipp Henkel
- *
- * Distributed under the Boost Software License, Version 1.0. (See
- * accompanying file LICENSE_1_0.txt or copy at
- * http://www.boost.org/LICENSE_1_0.txt)
- *
- * http://threadpool.sourceforge.net
- *
- */
-
 #include <iostream>
 
 #include <boost/threadpool.hpp>
