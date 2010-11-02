@@ -6,7 +6,15 @@
 #include <boost/functional/factory.hpp>
 #include <boost/any.hpp>
 
-class timer_base
+class object_base
+{
+public:
+	virtual ~object_base()
+	{
+	}
+};
+
+class timer_base : public object_base
 {
 public:
 	timer_base(boost::asio::io_service& io) : timer_(io)
@@ -56,13 +64,13 @@ private:
 
 class object_factory
 {
-	typedef boost::function< boost::shared_ptr<timer_base>() > a_factory;
+	typedef boost::function< boost::shared_ptr<object_base>() > a_factory;
 public:
 	void register_factory(const std::string& classname, a_factory factory)
 	{
 		m_factories[classname] = factory;
 	}
-	boost::shared_ptr<timer_base> create(const std::string& classname)
+	boost::shared_ptr<object_base> create(const std::string& classname)
 	{
 		return m_factories[classname]();
 	}
@@ -76,10 +84,12 @@ int main()
 	boost::asio::io_service io;
 	boost::thread t(boost::bind(&boost::asio::io_service::run, &io));
 	of.register_factory("printer", boost::bind(boost::factory<boost::shared_ptr<printer> >(), boost::ref(io)));
-	boost::shared_ptr<printer> p = boost::dynamic_pointer_cast<printer, timer_base>(of.create("printer"));
+	boost::shared_ptr<printer> p1 = boost::dynamic_pointer_cast<printer, object_base>(of.create("printer"));
+	boost::shared_ptr<printer> p2 = boost::dynamic_pointer_cast<printer, object_base>(of.create("printer"));
 	//factories["printer"] = boost::bind(boost::factory<boost::shared_ptr<printer> >(), boost::ref(io));
 	//boost::shared_ptr<printer> p = boost::dynamic_pointer_cast<printer, timer_base>(factories["printer"]());
-	p->schedule(1);
+	p1->schedule(1);
+	p2->schedule(2);
 
 	t.join();
 	return 0;
