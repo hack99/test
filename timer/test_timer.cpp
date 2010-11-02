@@ -2,18 +2,41 @@
 #include <boost/asio.hpp>
 #include <boost/bind.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
-class printer
+#include <boost/thread.hpp>
+#include <boost/functional/factory.hpp>
+#include <boost/any.hpp>
+
+class timer_base
 {
 public:
-	printer(boost::asio::io_service& io, int sec)
-		: timer_(io, boost::posix_time::seconds(sec)),
-		count_(0),
-		sec_(sec)
+	timer_base(boost::asio::io_service& io) : timer_(io)
 	{
+		std::cout << "timer_base::timer_base()" << std::endl;
+	}
+	virtual ~timer_base()
+	{
+		std::cout << "timer_base::~timer_base()" << std::endl;
+	}
+protected:
+	boost::asio::deadline_timer timer_;
+};
+
+class printer : public timer_base
+{
+public:
+	printer(boost::asio::io_service& io) : timer_base(io), count_(0)
+	{
+		std::cout << "printer::printer()" << std::endl;
+	}
+	void schedule(int sec)
+	{
+		sec_ = sec;
+		timer_.expires_from_now(boost::posix_time::seconds(sec_));
 		timer_.async_wait(boost::bind(&printer::print, this));
 	}
-	~printer()
+	virtual ~printer()
 	{
+		std::cout << "printer::~printer()" << std::endl;
 		std::cout << boost::date_time::microsec_clock< boost::posix_time::ptime >::universal_time() << " " << "Final count is " << sec_ << ":" << count_ << std::endl;
 	}
 	void print()
@@ -27,24 +50,38 @@ public:
 		}
 	}
 private:
-	boost::asio::deadline_timer timer_;
 	int count_;
 	int sec_;
 };
 
-boost::shared_ptr<printer> create(boost::asio::io_service &io, int sec)
+class object_factory
 {
-	boost::shared_ptr<printer> p(new printer(io, sec));
-	return p;
-}
+	typedef boost::function< boost::shared_ptr<timer_base>() > a_factory;
+public:
+	void register_factory(const std::string& classname, a_factory factory)
+	{
+		m_factories[classname] = factory;
+	}
+	boost::shared_ptr<timer_base> create(const std::string& classname)
+	{
+		return m_factories[classname]();
+	}
+protected:
+	std::map<std::string, a_factory> m_factories;
+};
 
 int main()
 {
+	object_factory of;
 	boost::asio::io_service io;
-	boost::shared_ptr<printer> p1 = create(io, 1);
-	boost::shared_ptr<printer> p2 = create(io, 2);
-	boost::shared_ptr<printer> p3 = create(io, 3);
-	io.run();
+	boost::thread t(boost::bind(&boost::asio::io_service::run, &io));
+	of.register_factory("printer", boost::bind(boost::factory<boost::shared_ptr<printer> >(), boost::ref(io)));
+	boost::shared_ptr<printer> p = boost::dynamic_pointer_cast<printer, timer_base>(of.create("printer"));
+	//factories["printer"] = boost::bind(boost::factory<boost::shared_ptr<printer> >(), boost::ref(io));
+	//boost::shared_ptr<printer> p = boost::dynamic_pointer_cast<printer, timer_base>(factories["printer"]());
+	p->schedule(1);
+
+	t.join();
 	return 0;
 }
 
