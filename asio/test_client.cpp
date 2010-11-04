@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
 			char name[100];
 			std::cin.getline (name , 100);
 			boost::shared_ptr<msg_base> msg(new msg_base(strlen(name)+3));
-			*msg << (unsigned short)(strlen(name)+3) << (char*)name;
+			*msg << msg_base::length_holder() << (char*)name;
 			conn->write(msg); 
 		}
 	}

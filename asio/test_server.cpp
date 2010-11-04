@@ -34,7 +34,7 @@ public:
 	{
 		boost::shared_ptr<msg_base> msg(new msg_base(100));
 		const std::string& daytime = make_daytime_string();
-		*msg << (short)(daytime.length()+3) << daytime;
+		*msg << msg_base::length_holder() << daytime;
 		connection->write(msg);
 	}
 
