@@ -1,6 +1,7 @@
 #Source file
 
 SRC = test_server.cpp
+HDR = tcp_connection.h handler_base.h
 #Object file
 OBJ = $(SRC:.cpp=.o)
 
@@ -30,7 +31,7 @@ $(PROGRAM).$(PROGRAM_EXT): $(OBJ)
 
 .SUFFIXES = .cpp
 
-.cpp.o:
+.cpp.o: 
 	$(CC) $(INCLUDE) $(CFLAGS) -c $<
 
 clean:
