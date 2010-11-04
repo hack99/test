@@ -78,16 +78,18 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 	
-		network_service net_service;
+		network_service ns;
 		
-		tcp::resolver resolver(net_service.io_service());
+		ns.init();
+
+		tcp::resolver resolver(ns.io_service());
 		tcp::resolver::query query(argv[1], argv[2]);
 		tcp::resolver::iterator endpoint_iterator = resolver.resolve(query);
 	
-		tcp_client<client_handler> c(net_service.io_service());
+		tcp_client<client_handler> c(ns.io_service());
 		tcp_connection::pointer conn = c.connect(endpoint_iterator);
 
-		for (;;)
+		for (int i = 0; i < 10; i++)
 		{
 			char name[100];
 			std::cin.getline (name , 100);
@@ -95,6 +97,7 @@ int main(int argc, char* argv[])
 			*msg << msg_base::length_holder() << (char*)name;
 			conn->write(msg); 
 		}
+		ns.fini();
 	}
 	catch (std::exception& e)
 	{

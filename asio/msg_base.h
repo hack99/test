@@ -57,7 +57,7 @@ public:
 
 	msg_base& operator<<(length_holder data)
 	{
-		if (!length_holder_)
+		if (length_holder_ != NULL)
 		{
 			// Only one place holder
 			return *this;
@@ -90,6 +90,15 @@ public:
 	{
 		write_data(data, strlen(data)+1);
 		return *this;
+	}
+
+	void dump()
+	{
+		for (int i = rd_ptr_; i < wr_ptr_; i++)
+		{
+			printf("%02X ", (unsigned char)buffer_[i]);
+		}
+		printf("\n");
 	}
 
 	char* const buffer() { return buffer_; }

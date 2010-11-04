@@ -35,6 +35,7 @@ public:
 		boost::shared_ptr<msg_base> msg(new msg_base(100));
 		const std::string& daytime = make_daytime_string();
 		*msg << msg_base::length_holder() << daytime;
+		msg->dump();
 		connection->write(msg);
 	}
 
@@ -99,19 +100,27 @@ private:
 	T handler_;
 };
 
-int main()
+int main(int argc, char* argv[])
 {
 	try
 	{
-		network_service net_service;
-		tcp_server<server_handler> server(net_service.io_service(), 12345);
+		if (argc != 2)
+		{
+			std::cerr << "Usage: server <port>" << std::endl;
+			return 1;
+		}
+
+		network_service ns;
+		ns.init();
+		tcp_server<server_handler> server(ns.io_service(), std::atoi(argv[1]));
 		while (1)
 		{
 			char ch;
 			std::cin.get(ch); // blocking wait for standard input
-			if (ch == 3) // ctrl-C to end program
+			if (ch == 's') // ctrl-C to end program
 				break;
 		}
+		ns.fini();
 	}
 	catch (std::exception& e)
 	{

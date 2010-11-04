@@ -7,18 +7,25 @@
 class network_service
 {
 public:
-	network_service(int worker_count = boost::thread::hardware_concurrency()) : 
-		work_(new boost::asio::io_service::work(io_service_))
+	network_service() : work_(new boost::asio::io_service::work(io_service_))
+	{
+	}
+	
+	void init(int worker_count = boost::thread::hardware_concurrency())
 	{
 		std::cout << "Create thread pool with " << worker_count << " workers" << std::endl;
 		for (int i = 0; i < worker_count; i++)
 			workers_.create_thread(boost::bind(&boost::asio::io_service::run, &io_service_));
 	}
 
-	virtual ~network_service()
-	{	
+	void fini()
+	{
 		work_.reset();
 		workers_.join_all();
+	}
+
+	virtual ~network_service()
+	{	
 	}
 	
 	boost::asio::io_service& io_service()
