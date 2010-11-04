@@ -67,7 +67,7 @@ public:
 	int& buffer_tail() { return buffer_tail_; }
 private:
 	tcp_connection(boost::asio::io_service& io_service, handler_base *handler)
-	: io_service_(io_service), socket_(io_service), handler_(handler), buffer_head_(0), buffer_tail_(0)
+	: io_service_(io_service), socket_(io_service), handler_(handler), buffer_head_(0), buffer_tail_(0), stopped_(false)
 	{
 		std::cout << "tcp_connection::tcp_connection() " << std::endl;
 	}
@@ -100,7 +100,10 @@ private:
 	} 
 
 	void start_read(void)
-	{ // Start an asynchronous read and call read_complete when it completes or fails
+	{ 
+		if (stopped_)
+			return;
+		// Start an asynchronous read and call read_complete when it completes or fails
 		socket_.async_read_some(boost::asio::buffer(buffer_+buffer_head_, max_read_length-buffer_tail_),
 			boost::bind(&tcp_connection::handle_read,
 				shared_from_this(),
@@ -119,6 +122,8 @@ private:
 
 	void start_write()
 	{
+		if (stopped_)
+			return;
 		boost::shared_ptr<msg_base>& msg = write_msgs_.front();
 		boost::asio::async_write(socket_, boost::asio::buffer(msg->buffer()+msg->rd_ptr(), msg->wr_ptr()),
 		boost::bind(&tcp_connection::handle_write, shared_from_this(),
@@ -168,6 +173,10 @@ private:
 
 	void handle_close(const boost::system::error_code& error)
 	{
+		if (stopped_)
+			return;
+
+		stopped_ = true;
 		std::cout << "handle_close" << std::endl;
 		// Initiate graceful service_handler closure.
 		boost::system::error_code ignored_ec;
@@ -185,6 +194,7 @@ private:
 	char buffer_[max_read_length]; // data read from the socket 
 	int buffer_head_;
 	int buffer_tail_;
+	bool stopped_;
 };
 
 
