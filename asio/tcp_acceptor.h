@@ -12,6 +12,9 @@ public:
 	tcp_acceptor(boost::asio::io_service& io_service, handler_base& handler, int port) : io_service_(io_service),
 		acceptor_(io_service, tcp::endpoint(tcp::v4(), port)), handler_(handler)
 	{
+		acceptor_.set_option(boost::asio::ip::tcp::no_delay(true));
+		acceptor_.set_option(boost::asio::socket_base::keep_alive(true));
+		acceptor_.set_option(boost::asio::socket_base::enable_connection_aborted(true));
 		start_accept();
 	}
 
