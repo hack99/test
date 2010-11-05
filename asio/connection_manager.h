@@ -17,6 +17,7 @@ public:
 	/// Add the specified connection to the manager and start it.
 	void add(tcp_connection::pointer c)
 	{
+		std::cout << "connection_manager::add" << std::endl;
 		boost::mutex::scoped_lock lock(mutex_);
 		connections_.insert(c);
 	}
@@ -24,6 +25,7 @@ public:
 	/// Stop the specified connection.
 	void del(tcp_connection::pointer c)
 	{
+		std::cout << "connection_manager::del" << std::endl;
 		boost::mutex::scoped_lock lock(mutex_);
 		connections_.erase(c);
 	}
@@ -32,8 +34,10 @@ public:
 	void close_all()
 	{
 		boost::mutex::scoped_lock lock(mutex_);
+		std::cout << "connection_manager::close_all" << std::endl;
 		std::for_each(connections_.begin(), connections_.end(), boost::bind(&tcp_connection::close, _1));
-		connections_.clear();
+		//connections_.clear();
+		std::cout << "connection_manager::close_all finish" << std::endl;
 	}
 
 private:

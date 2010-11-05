@@ -13,13 +13,14 @@ public:
 	
 	void init(int worker_count = boost::thread::hardware_concurrency())
 	{
-		std::cout << "Create thread pool with " << worker_count << " workers" << std::endl;
+		std::cout << "network_service::init with " << worker_count << " workers" << std::endl;
 		for (int i = 0; i < worker_count; i++)
 			workers_.create_thread(boost::bind(&boost::asio::io_service::run, &io_service_));
 	}
 
 	void fini()
 	{
+		std::cout << "network_service::fini" << std::endl;
 		work_.reset();
 		workers_.join_all();
 	}

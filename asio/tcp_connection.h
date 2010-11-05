@@ -7,6 +7,8 @@
 #include <boost/enable_shared_from_this.hpp>
 #include <boost/thread.hpp>
 
+#include "msg_base.h"
+
 using boost::asio::ip::tcp;
 
 class handler_base;
@@ -23,7 +25,7 @@ public:
 		std::cout << "tcp_connection::~tcp_connection() " << std::endl;
 	}
 
-	static pointer create(boost::asio::io_service& io_service, handler_base* handler)
+	static pointer create(boost::asio::io_service& io_service, handler_base& handler)
 	{
 		return pointer(new tcp_connection(io_service, handler));
 	}
@@ -35,14 +37,14 @@ public:
 
 	void start()
 	{
-		std::cout << "start" << std::endl;
+		std::cout << "tcp_connection::start" << std::endl;
 		io_service_.dispatch(boost::bind(&tcp_connection::start_read, shared_from_this()));
-		io_service_.dispatch(boost::bind(&handler_base::on_connect, handler_, shared_from_this()));
+		io_service_.dispatch(boost::bind(&handler_base::on_connect, boost::ref(handler_), shared_from_this()));
 	}
 
 	void connect(tcp::resolver::iterator endpoint_iterator)
 	{
-		std::cout << "connect" << std::endl;
+		std::cout << "tcp_connection::connect" << std::endl;
 		io_service_.dispatch(boost::bind(&tcp_connection::start_connect, shared_from_this(), endpoint_iterator));
 	}
 
@@ -59,6 +61,7 @@ public:
 	
 	void close()
 	{
+		std::cout << "tcp_conneciton::close" << std::endl;
 		close(boost::system::error_code(0, boost::system::get_system_category()));
 	}
 	
@@ -66,7 +69,7 @@ public:
 	int& buffer_head() { return buffer_head_; }
 	int& buffer_tail() { return buffer_tail_; }
 private:
-	tcp_connection(boost::asio::io_service& io_service, handler_base *handler)
+	tcp_connection(boost::asio::io_service& io_service, handler_base& handler)
 	: io_service_(io_service), socket_(io_service), handler_(handler), buffer_head_(0), buffer_tail_(0), stopped_(false)
 	{
 		std::cout << "tcp_connection::tcp_connection() " << std::endl;
@@ -74,7 +77,7 @@ private:
 
 	void start_connect(tcp::resolver::iterator endpoint_iterator)
 	{
-		std::cout << "start_connect" << std::endl;
+		std::cout << "tcp_connection::start_connect" << std::endl;
 		// asynchronously connect a socket to the specified remote endpoint and call connect_complete when it completes or fails
 		tcp::endpoint endpoint = *endpoint_iterator;
 		socket_.async_connect(endpoint,
@@ -86,7 +89,7 @@ private:
 
 	void handle_connect(const boost::system::error_code& error, tcp::resolver::iterator endpoint_iterator)
 	{ 
-		std::cout << "handle_connect" << std::endl;
+		std::cout << "tcp_connection::handle_connect" << std::endl;
 		// the connection to the server has now completed or failed and returned an error
 		if (!error) // success, so start waiting for read data
 		{
@@ -101,6 +104,7 @@ private:
 
 	void start_read(void)
 	{ 
+		std::cout << "tcp_connection::start_read" << std::endl;
 		if (stopped_)
 			return;
 		// Start an asynchronous read and call read_complete when it completes or fails
@@ -135,10 +139,10 @@ private:
 	{ // the asynchronous read operation has now completed or failed and returned an error
 		if (!error)
 		{ // read completed, so process the data
-			std::cout << "handle_read " << bytes_transferred << std::endl;
+			std::cout << "tcp_connection::handle_read " << bytes_transferred << std::endl;
 			buffer_tail_ += bytes_transferred;
 			//std::cout << "head:" << buffer_head_ << " tail:" << buffer_tail_ << " new:" <<  bytes_transferred << std::endl;
-			handler_->on_read(shared_from_this());
+			handler_.on_read(shared_from_this());
 			if (buffer_head_ > 0)
 			{
 				if (buffer_tail_-buffer_head_ > 0)
@@ -148,27 +152,33 @@ private:
 				buffer_tail_ -= buffer_head_;
 				buffer_head_ = 0;
 			}
-			std::cout << "head:" << buffer_head_ << " tail:" << buffer_tail_ << std::endl;
+			//std::cout << "head:" << buffer_head_ << " tail:" << buffer_tail_ << std::endl;
 			//cout << "\n";
 			start_read(); // start waiting for another asynchronous read again
 		}
 		else
+		{
+			std::cerr << "tcp_connection::handle_read " << error.message() << std::endl;
 			close(error);
+		}
 	} 
 
 	void handle_write(const boost::system::error_code& error, size_t bytes_transferred)
 	{
 		if (!error)
 		{
-			std::cout << "handle_write " << bytes_transferred << std::endl;
+			std::cout << "tcp_connection::handle_write " << bytes_transferred << std::endl;
 			boost::lock_guard<boost::mutex> lock(mutex_); 
 			write_msgs_.pop_front(); // remove the completed data
 			if (!write_msgs_.empty()) // if there is anthing left to be written
 				start_write(); // then start sending the next item in the buffer
-			handler_->on_write(shared_from_this());
+			handler_.on_write(shared_from_this());
 		}
 		else
+		{
+			std::cerr << "tcp_connection::handle_write " << error.message() << std::endl;
 			close(error);
+		}
 	}
 
 	void handle_close(const boost::system::error_code& error)
@@ -177,20 +187,20 @@ private:
 			return;
 
 		stopped_ = true;
-		std::cout << "handle_close" << std::endl;
+		std::cout << "tcp_connection::handle_close" << std::endl;
 		// Initiate graceful service_handler closure.
 		boost::system::error_code ignored_ec;
 		socket_.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ignored_ec);
 		socket_.close();
 
-		handler_->on_close(shared_from_this());
+		handler_.on_close(shared_from_this());
 	}
 
 	boost::asio::io_service& io_service_;
 	tcp::socket socket_;
 	boost::mutex mutex_; 
 	std::deque<boost::shared_ptr<msg_base> > write_msgs_;
-	handler_base* handler_;
+	handler_base& handler_;
 	char buffer_[max_read_length]; // data read from the socket 
 	int buffer_head_;
 	int buffer_tail_;

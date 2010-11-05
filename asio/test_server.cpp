@@ -20,6 +20,7 @@
 #include "tcp_connection.h"
 #include "network_service.h"
 #include "connection_manager.h"
+#include "tcp_acceptor.h"
 
 std::string make_daytime_string()
 {
@@ -75,57 +76,6 @@ protected:
 	connection_manager connection_manager_;
 };
 
-
-template <class T>
-class tcp_server
-{
-public:
-	tcp_server(boost::asio::io_service& io_service, int port) : io_service_(io_service),
-		acceptor_(io_service_, tcp::endpoint(tcp::v4(), port))
-	{
-		start_accept();
-	}
-
-	virtual ~tcp_server()
-	{	
-	}
-
-	T& get_handler()
-	{
-		return handler_;
-	}
-
-	void stop()
-	{
-		acceptor_.close();
-	}
-private:
-	void start_accept()
-	{
-		tcp_connection::pointer new_connection =
-		tcp_connection::create(io_service_, &handler_);
-		
-		acceptor_.async_accept(new_connection->socket(),
-		boost::bind(&tcp_server::handle_accept, this, new_connection,
-			boost::asio::placeholders::error));
-	}
-	
-	void handle_accept(tcp_connection::pointer new_connection,
-	const boost::system::error_code& error)
-	{
-		if (!error)
-		{
-			new_connection->start();
-			start_accept();
-		}
-	}
-
-private:
-	boost::asio::io_service& io_service_;
-	tcp::acceptor acceptor_;
-	T handler_;
-};
-
 int main(int argc, char* argv[])
 {
 	try
@@ -137,8 +87,9 @@ int main(int argc, char* argv[])
 		}
 
 		network_service ns;
+		server_handler sh;
 		ns.init();
-		tcp_server<server_handler> server(ns.io_service(), std::atoi(argv[1]));
+		tcp_acceptor server(ns.io_service(), sh, std::atoi(argv[1]));
 		while (1)
 		{
 			char name[100];
@@ -150,7 +101,7 @@ int main(int argc, char* argv[])
 			}
 		}
 		server.stop();
-		server.get_handler().close_all();
+		sh.close_all();
 		ns.fini();
 	}
 	catch (std::exception& e)
