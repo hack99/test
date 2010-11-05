@@ -96,7 +96,9 @@ int main(int argc, char* argv[])
 			}
 			boost::shared_ptr<msg_base> msg(new msg_base(strlen(name)+3));
 			*msg << msg_base::length_holder() << (char*)name;
-			conn.lock()->write(msg); 
+			tcp_connection::pointer conn_ptr = conn.lock();
+			if (!conn_ptr) break;
+			conn_ptr->write(msg); 
 		}
 		ch.close_all();
 		ns.fini();

@@ -37,7 +37,6 @@ public:
 		std::cout << "connection_manager::close_all" << std::endl;
 		std::for_each(connections_.begin(), connections_.end(), boost::bind(&tcp_connection::close, _1));
 		//connections_.clear();
-		std::cout << "connection_manager::close_all finish" << std::endl;
 	}
 
 private:
