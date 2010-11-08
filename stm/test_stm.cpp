@@ -13,7 +13,7 @@
 
 //-----------------------------------------------------------------------------
 //-----------------------------------------------------------------------------
-#include <boost/stm/transaction.hpp>
+#include <boost/stm.hpp>
 #include <boost/threadpool.hpp>
 #include <boost/bind.hpp>
 
@@ -24,55 +24,194 @@ using namespace boost::stm;
 //----------------------------------------------------------------------------
 //----------------------------------------------------------------------------
 
-native_trans<int> a = 0;
-
 // Create fifo thread pool container with two threads.
-const int thread_count = 10;
+const int thread_count = 8;
 pool tp(thread_count);
 boost::barrier bar(thread_count);
 
 void init()
 {
-	cout << "init start" << endl;
 	boost::stm::transaction::initialize_thread();
-	cout << "init wait" << endl;
 	bar.wait();
-	cout << "init finish" << endl;
 }
 
-void func(int i)
+class object_base : public transaction_object<object_base>
 {
-	atomic (t)
+public:
+	object_base() : id_(0)
 	{
-		for (int i = 0; i < 1000; i++)
-			t.w(a)++;
-	}end_atom
+		cout << "object_base::object_base()" << endl;
+	}
 
-	cout << "Commit " << i << ":" << a << endl;
+	virtual ~object_base()
+	{
+		cout << "object_base::~object_base()" << endl;
+	}
+
+	virtual void write_id(int id)
+	{
+		id_ = id;
+	}
+
+	virtual int read_id() const
+	{
+		return id_;
+	}
+
+	virtual void print_id() const
+	{
+		cout << "id=" << id_ << endl;
+	}
+protected:
+	int id_;
+};
+
+class test_parent : public transaction_object<test_parent, object_base>
+{
+public:
+	test_parent() : parent_id_(0)
+	{
+		cout << "test_parent::test_parent()" << endl;
+	}
+
+	virtual ~test_parent()
+	{
+		cout << "test_parent::~test_parent()" << endl;
+	}
+
+	virtual void write_id(int id)
+	{
+		parent_id_ = id;
+	}
+
+	virtual int read_id() const
+	{
+		return parent_id_;
+	}
+
+	virtual void print_id() const
+	{
+		cout << "id=" << id_ << ":" << parent_id_ << endl;
+	}
+protected:
+	int parent_id_;
+};
+
+class test_child : public transaction_object<test_child, test_parent>
+{
+public:
+	test_child() : child_id_(0)
+	{
+		cout << "test_child::test_child()" << endl;
+	}
+
+	virtual ~test_child()
+	{
+		cout << "test_child::~test_child()" << endl;
+	}
+
+	virtual void write_id(int id)
+	{
+		child_id_ = id;
+	}
+
+	virtual int read_id() const
+	{
+		return child_id_;
+	}
+
+	virtual void print_id() const
+	{
+		cout << "id=" << id_ << ":" << parent_id_ << ":" << child_id_ << endl;
+	}
+protected:
+	int child_id_;
+};
+
+object_base* obj = NULL;
+
+static void create()
+{
+	atomic(t)
+	{
+		obj = t.new_memory<test_child>(NULL);
+	}
+	before_retry
+	{
+		cout << "create" << endl;
+	}
+}
+
+static void change()
+{
+	try_atomic(t)
+	{
+		object_base* tmp = t.write_ptr(obj);
+		for (int i = 0; i < 10; i++)
+		{
+			tmp->write_id(tmp->read_id()+1);
+		}
+	}
+	before_retry
+	{
+		cout << "retry change" << endl;
+	}
+}
+
+static void print()
+{
+	atomic(t)
+	{
+		obj->print_id();
+	}
+	before_retry
+	{
+		cout << "print" << endl;
+	}
+}
+
+static void destroy()
+{
+	atomic(t)
+	{
+		t.delete_memory(*obj);
+	}
+	before_retry
+	{
+		cout << "destroy" << endl;
+	}
 }
 
 int main()
 {
 
 	boost::stm::transaction::initialize();
+	boost::stm::transaction::initialize_thread();
 
 	for (int i = 0; i < thread_count; i++)
 	{
 		tp.schedule(init);
 	}
 
-	boost::stm::transaction::do_direct_updating();
-	//boost::stm::transaction::do_deferred_updating();
+	//boost::stm::transaction::do_direct_updating();
+	boost::stm::transaction::do_deferred_updating();
 
-	// Add some tasks to the pool.
+	create();
+
+	boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+
 	for (int i = 0; i < 1000; i++)
 	{
-		tp.schedule(boost::bind(func, i));
-	}
+		tp.schedule(change);
+	}	
 
 	tp.wait();
 
-	cout << "Final " << a << endl;
+	boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+
+	print();
+
+	destroy();
 
 	return 0;
 }
