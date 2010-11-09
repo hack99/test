@@ -135,6 +135,38 @@ protected:
 	manager_item *item_;
 };
 
+class special_object : public transaction_object<special_object>
+{
+public:
+	special_object()
+	{
+		boost::mutex::scoped_lock lock(the_mutex);
+		cout << this << " special_object::special_object()" << endl;
+	}
+
+	virtual ~special_object()
+	{
+		boost::mutex::scoped_lock lock(the_mutex);
+		cout << this << " special_object::~special_object()" << endl;
+	}
+
+	special_object(const special_object& rhs)
+	{
+		boost::mutex::scoped_lock lock(the_mutex);
+		cout << this << " special_object::special_object(special_object&)" << endl;
+	}
+
+	special_object& operator=(const special_object& rhs)
+	{
+		// We already has lock here, this lock is for print purpose only
+		boost::mutex::scoped_lock lock(the_mutex);
+		static int count = 0;
+		cout << this << " special_object::operator=()" << endl;
+		cout << this << " start timer " << ++count << endl;
+	}
+	
+};
+
 class test_parent : public object_base
 {
 public:
@@ -288,6 +320,46 @@ static void destroy()
 	}
 }
 
+special_object* special = NULL;
+
+static void create_special()
+{
+	try_atomic(t)
+	{
+		special = t.new_memory(special);
+	}
+	before_retry
+	{
+		boost::mutex::scoped_lock lock(the_mutex);
+		cout << "create special" << endl;
+	}
+}
+
+static void change_special()
+{
+	try_atomic(t)
+	{
+		t.write_ptr(special);
+	}
+	before_retry
+	{
+		boost::mutex::scoped_lock lock(the_mutex);
+		cout << "change special" << endl;
+	}
+}
+
+static void destroy_special()
+{
+	try_atomic(t)
+	{
+		t.delete_memory(*special);
+	}
+	before_retry
+	{
+		cout << "destroy special" << endl;
+	}
+}
+
 int main()
 {
 
@@ -302,6 +374,7 @@ int main()
 	//boost::stm::transaction::do_direct_updating();
 	boost::stm::transaction::do_deferred_updating();
 
+/*
 	create();
 
 	boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
@@ -317,6 +390,18 @@ int main()
 	print();
 
 	destroy();
+*/
+
+	create_special();
+
+	for (int i = 0; i < 1000; i++)
+	{
+		tp.schedule(change_special);
+	}	
+
+	tp.wait();
+
+	destroy_special();
 
 	// Trigger defered delete
 	transaction t;
