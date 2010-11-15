@@ -12,6 +12,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/log/utility/init/to_console.hpp>
 #include <boost/log/utility/init/common_attributes.hpp>
+#include <boost/regex.hpp>
 
 namespace logging = boost::log;
 namespace attrs = boost::log::attributes;
@@ -115,6 +116,33 @@ public:
 	}
 };
 
+class file_line
+{
+	const char* file_;
+	const int line_;
+
+	static boost::regex file_regex_;
+public:
+	explicit file_line(const char* file, const int line) : file_(file), line_(line) {}
+	
+	template< typename CharT, typename TraitsT >
+	friend std::basic_ostream< CharT, TraitsT >& operator<< (std::basic_ostream< CharT, TraitsT >& strm, file_line const& obj)
+	{
+		boost::cmatch matches;
+		if (boost::regex_match(obj.file_, matches, file_regex_))
+		{
+			if (matches.size() > 1)
+			{
+				std::string filename(matches[matches.size()-1].first, matches[matches.size()-1].second);
+				strm << "[" << filename << ":" << obj.line_ << "]";
+			}
+		}
+		return strm;
+	}	
+};
+
+boost::regex file_line::file_regex_("(?:\\A|.*[\\\\\\/])([^\\\\\\/]+)");
+
 int main(int, char*[])
 {
 	init_log("test.log");
@@ -122,5 +150,5 @@ int main(int, char*[])
 	char a[256] = {0};
 	for (int i = 0; i < 256; i++) *(unsigned char*)&a[i] = i;
 	BOOST_LOG_SEV(my_logger::get(), trace) << dump_data((unsigned char*)a, sizeof(a));
-	std::cout.printf("%d\n", a[0]);
+	BOOST_LOG_SEV(my_logger::get(), trace) << file_line(__FILE__, __LINE__);
 }
