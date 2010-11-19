@@ -1,0 +1,3 @@
+g++ -I/usr/include/ncurses -I/usr/include/ -I/localview/vrgm63/tmp/boost_1_44_0 -I/localview/vrgm63/tmp/protobuf-2.3.0/src -ansi -g -Wall -c test_protobuf.cpp
+g++ -I/usr/include/ncurses -I/usr/include/ -I/localview/vrgm63/tmp/boost_1_44_0 -I/localview/vrgm63/tmp/protobuf-2.3.0/src -ansi -g -Wall -c addressbook.pb.cc
+g++ -o test_protobuf.bin -L/localview/vrgm63/tmp/boost_1_44_0/stage/lib -L/localview/vrgm63/tmp/protobuf-2.3.0/src -lpthread -lncurses -lboost_thread -lboost_system  test_protobuf.o addressbook.pb.cc test_protobuf.cpp addressbook.pb.o  
