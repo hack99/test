@@ -14,6 +14,8 @@
 //front-end
 #include <boost/msm/front/state_machine_def.hpp>
 
+#include <boost/stm/transaction.hpp>
+
 namespace msm = boost::msm;
 namespace mpl = boost::mpl;
 
@@ -168,33 +170,102 @@ namespace
 
   void test()
   {
-    player p;
+    player q;
+	player p = q;
+	
+	std::cout << "sizeof(p)=" << sizeof(p) << std::endl;
     // needed to start the highest-level SM. This will call on_entry and mark the start of the SM
     p.start();
     // go to Open, call on_exit on Empty, then action, then on_entry on Open
-    p.process_event(open_close()); pstate(p);
-    p.process_event(open_close()); pstate(p);
+    p.process_event(open_close()); pstate(p); q=p; pstate(q);
+    p.process_event(open_close()); pstate(p); q=p; pstate(q);
     // will be rejected, wrong disk type
     p.process_event(
-      cd_detected("louie, louie",DISK_DVD)); pstate(p);
+      cd_detected("louie, louie",DISK_DVD)); pstate(p); q=p; pstate(q);
     p.process_event(
-      cd_detected("louie, louie",DISK_CD)); pstate(p);
+      cd_detected("louie, louie",DISK_CD)); pstate(p); q=p; pstate(q);
     p.process_event(play());
 
     // at this point, Play is active
-    p.process_event(pause()); pstate(p);
+    p.process_event(pause()); pstate(p); q=p; pstate(q);
     // go back to Playing
-    p.process_event(end_pause());  pstate(p);
-    p.process_event(pause()); pstate(p);
-    p.process_event(stop());  pstate(p);
+    p.process_event(end_pause());  pstate(p); q=p; pstate(q);
+    p.process_event(pause()); pstate(p); q=p; pstate(q);
+    p.process_event(stop());  pstate(p); q=p; pstate(q);
     // event leading to the same state
     // no action method called as it is not present in the transition table
-    p.process_event(stop());  pstate(p);
+    p.process_event(stop());  pstate(p); q=p; pstate(q);
   }
+
+using namespace boost::stm;
+
+class player_object : public transaction_object<player_object>
+{
+public:
+	player_object()
+	{
+	}
+
+	void start()
+	{
+		transaction *tx = current_transaction();
+		tx->write_ptr(this)->p_.start();
+	}
+
+	template <class T>
+	void process_event(T event)
+	{
+		transaction *tx = current_transaction();
+		tx->write_ptr(this)->p_.process_event(event);	
+	}
+
+	player& get_player() 
+	{
+		transaction *tx = current_transaction(); 
+		return tx->write_ptr(this)->p_; 
+	}
+protected:
+	player p_;
+};
+
+void trans_test()
+{
+	player_object p;
+	try_atomic (t)
+	{
+		p.start();
+		// go to Open, call on_exit on Empty, then action, then on_entry on Open
+		p.process_event(open_close()); pstate(p.get_player());
+		p.process_event(open_close()); pstate(p.get_player());
+		// will be rejected, wrong disk type
+		p.process_event(
+		cd_detected("louie, louie",DISK_DVD)); pstate(p.get_player());
+		p.process_event(
+		cd_detected("louie, louie",DISK_CD)); pstate(p.get_player());
+		p.process_event(play());
+		
+		// at this point, Play is active
+		p.process_event(pause()); pstate(p.get_player());
+		// go back to Playing
+		p.process_event(end_pause());  pstate(p.get_player());
+		p.process_event(pause()); pstate(p.get_player());
+		p.process_event(stop());  pstate(p.get_player()); 
+		// event leading to the same state
+		// no action method called as it is not present in the transition table
+		p.process_event(stop());  pstate(p.get_player());
+	
+	} end_atom
+
 }
+
+}
+
+
 
 int main()
 {
-  test();
+	boost::stm::transaction::initialize();
+	boost::stm::transaction::initialize_thread();
+  trans_test();
   return 0;
 }
