@@ -198,11 +198,16 @@ int main (int argc, char **argv)
     // set default mouse image
     System::getSingleton().setDefaultMouseCursor("Vanilla-Images", "MouseArrow");
 
+    FontManager::getSingleton().create("DejaVuSans-10.font");
+
 	Window *root = winMgr.loadWindowLayout("VanillaWindows.layout");
-    // install this as the root GUI sheet
+	Window *console = winMgr.loadWindowLayout("VanillaConsole.layout", "Demo");
+	root->addChildWindow(console);
+
+	// install this as the root GUI sheet
     System::getSingleton().setGUISheet(root);
 
-    FontManager::getSingleton().create("DejaVuSans-10.font");
+
 
 	main_loop();
 
