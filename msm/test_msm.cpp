@@ -45,6 +45,15 @@ namespace
     DiskTypeEnum disc_type;
   };
 
+	class handler
+	{
+	public:
+		void handle(const char* event)
+		{
+			std::cout << "handler::handle(" << event << ")" << std::endl;
+		} 
+	};
+
   // front-end: define the FSM structure
   struct player_ : public msm::front::state_machine_def<player_>
   {
@@ -96,15 +105,15 @@ namespace
     typedef Empty initial_state;
 
     // transition actions
-    void start_playback(play const&)       { std::cout << "player::start_playback\n"; }
-    void open_drawer(open_close const&)    { std::cout << "player::open_drawer\n"; }
-    void close_drawer(open_close const&)   { std::cout << "player::close_drawer\n"; }
-    void store_cd_info(cd_detected const&) { std::cout << "player::store_cd_info\n"; }
-    void stop_playback(stop const&)        { std::cout << "player::stop_playback\n"; }
-    void pause_playback(pause const&)      { std::cout << "player::pause_playback\n"; }
-    void resume_playback(end_pause const&)      { std::cout << "player::resume_playback\n"; }
-    void stop_and_open(open_close const&)  { std::cout << "player::stop_and_open\n"; }
-    void stopped_again(stop const&){std::cout << "player::stopped_again\n";}
+    void start_playback(play const&)       { std::cout << "player::start_playback\n"; handler_->handle("play"); }
+    void open_drawer(open_close const&)    { std::cout << "player::open_drawer\n";  handler_->handle("open_close"); }
+    void close_drawer(open_close const&)   { std::cout << "player::close_drawer\n";  handler_->handle("open_close"); }
+    void store_cd_info(cd_detected const&) { std::cout << "player::store_cd_info\n"; handler_->handle("cd_detected"); }
+    void stop_playback(stop const&)        { std::cout << "player::stop_playback\n"; handler_->handle("stop"); }
+    void pause_playback(pause const&)      { std::cout << "player::pause_playback\n"; handler_->handle("pause"); }
+    void resume_playback(end_pause const&)      { std::cout << "player::resume_playback\n"; handler_->handle("end_pause"); }
+    void stop_and_open(open_close const&)  { std::cout << "player::stop_and_open\n"; handler_->handle("open_close"); }
+    void stopped_again(stop const&){std::cout << "player::stopped_again\n"; handler_->handle("stop");  }
     // guard conditions
     bool good_disk_format(cd_detected const& evt)
     {
@@ -155,6 +164,11 @@ namespace
       std::cout << "no transition from state " << state
       << " on event " << typeid(e).name() << std::endl;
     }
+
+	player_(handler *h) : handler_(h)
+	{}
+	protected:
+		handler *handler_;
   };
   // Pick a back-end
   typedef msm::back::state_machine<player_> player;
@@ -168,41 +182,12 @@ namespace
     std::cout << " -> " << state_names[p.current_state()[0]] << std::endl;
   }
 
-  void test()
-  {
-    player q;
-	player p = q;
-	
-	std::cout << "sizeof(p)=" << sizeof(p) << std::endl;
-    // needed to start the highest-level SM. This will call on_entry and mark the start of the SM
-    p.start();
-    // go to Open, call on_exit on Empty, then action, then on_entry on Open
-    p.process_event(open_close()); pstate(p); q=p; pstate(q);
-    p.process_event(open_close()); pstate(p); q=p; pstate(q);
-    // will be rejected, wrong disk type
-    p.process_event(
-      cd_detected("louie, louie",DISK_DVD)); pstate(p); q=p; pstate(q);
-    p.process_event(
-      cd_detected("louie, louie",DISK_CD)); pstate(p); q=p; pstate(q);
-    p.process_event(play());
-
-    // at this point, Play is active
-    p.process_event(pause()); pstate(p); q=p; pstate(q);
-    // go back to Playing
-    p.process_event(end_pause());  pstate(p); q=p; pstate(q);
-    p.process_event(pause()); pstate(p); q=p; pstate(q);
-    p.process_event(stop());  pstate(p); q=p; pstate(q);
-    // event leading to the same state
-    // no action method called as it is not present in the transition table
-    p.process_event(stop());  pstate(p); q=p; pstate(q);
-  }
-
 using namespace boost::stm;
 
 class player_object : public transaction_object<player_object>
 {
 public:
-	player_object()
+	player_object() : p_(&handler_)
 	{
 	}
 
@@ -225,6 +210,7 @@ public:
 		return tx->write_ptr(this)->p_; 
 	}
 protected:
+	handler handler_;
 	player p_;
 };
 
