@@ -35,12 +35,7 @@ public:
 	{
 		std::lock_guard<std::mutex> lock(mutex_);
 		std::cout << "connection_manager::close_all" << std::endl;
-		for (std::set<tcp_connection::pointer >::iterator iter = connections_.begin(); iter != connections_.end(); iter++)
-		{
-			(*iter)->close();
-		}
-//		std::for_each(connections_.begin(), connections_.end(),
-//			std::mem_fun_ref(static_cast<void (tcp_connection::*)()>(&tcp_connection::close)));
+		std::for_each(connections_.begin(), connections_.end(), [](const tcp_connection::pointer &connection){connection->close();});
 		//connections_.clear();
 	}
 
