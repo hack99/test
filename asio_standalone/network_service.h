@@ -30,10 +30,7 @@ public:
 	{
 		std::cout << "network_service::fini" << std::endl;
 		work_.reset();
-		for(auto it=workers_.begin(),end=workers_.end();it!=end;++it) {
-			(*it)->join();
-			delete *it;
-		}
+		std::for_each(workers_.begin(), workers_.end(), [](std::thread *worker){ worker->join(); delete worker;});
 	}
 
 	virtual ~network_service()
